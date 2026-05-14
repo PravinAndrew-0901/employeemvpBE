@@ -5,7 +5,7 @@ from api.routes import (
     auth, roles, candidates, jobs, dashboard, 
     follow_ups, reports, users, settings as settings_router, 
     applications, employees, payroll, leaves, tickets,
-    attendance, announcements
+    attendance, announcements, assets, expenses
 )
 from db.database import engine, Base
 from fastapi.staticfiles import StaticFiles
@@ -50,6 +50,8 @@ app.include_router(leaves.router, prefix="/api", tags=["leaves"])
 app.include_router(tickets.router, prefix="/api", tags=["tickets"])
 app.include_router(attendance.router, prefix="/api", tags=["attendance"])
 app.include_router(announcements.router, prefix="/api", tags=["announcements"])
+app.include_router(assets.router, prefix="/api", tags=["assets"])
+app.include_router(expenses.router, prefix="/api", tags=["expenses"])
 
 @app.get("/")
 def read_root():

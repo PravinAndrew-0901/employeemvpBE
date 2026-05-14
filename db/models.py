@@ -63,6 +63,18 @@ class TicketStatus(str, enum.Enum):
     RESOLVED = 'Resolved'
     CLOSED = 'Closed'
 
+class AssetStatus(str, enum.Enum):
+    AVAILABLE = 'Available'
+    ASSIGNED = 'Assigned'
+    UNDER_REPAIR = 'Under Repair'
+    RETIRED = 'Retired'
+
+class ExpenseStatus(str, enum.Enum):
+    PENDING = 'Pending'
+    APPROVED = 'Approved'
+    REJECTED = 'Rejected'
+    PAID = 'Paid'
+
 # --- RBAC Models ---
 
 class Permission(Base):
@@ -224,13 +236,75 @@ class Employee(Base):
     leave_balances = relationship("LeaveBalance", back_populates="employee")
     pay_slips = relationship("PaySlip", back_populates="employee")
     tickets = relationship("SupportTicket", back_populates="creator", foreign_keys='SupportTicket.created_by_id')
-    
-    # New Zoho-like additions
     attendance_records = relationship("Attendance", back_populates="employee")
     performance_reviews = relationship("PerformanceReview", back_populates="employee", foreign_keys='PerformanceReview.employee_id')
     onboarding_tasks = relationship("OnboardingTask", back_populates="employee")
+    
+    # Power Modules Relationships
+    assets = relationship("Asset", back_populates="assigned_employee")
+    expenses = relationship("Expense", back_populates="employee", foreign_keys='Expense.employee_id')
+    project_memberships = relationship("ProjectMember", back_populates="employee")
 
-# --- Attendance & Time Tracking ---
+# --- Assets Management ---
+
+class Asset(Base):
+    __tablename__ = 'assets'
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    asset_type = Column(String(50)) 
+    serial_number = Column(String(100), unique=True)
+    model_number = Column(String(100))
+    status = Column(Enum(AssetStatus), default=AssetStatus.AVAILABLE)
+    assigned_employee_id = Column(Integer, ForeignKey('employees.id'), nullable=True)
+    purchase_date = Column(Date)
+    warranty_expiry = Column(Date)
+    
+    assigned_employee = relationship("Employee", back_populates="assets")
+
+# --- Expense Management ---
+
+class Expense(Base):
+    __tablename__ = 'expenses'
+    id = Column(Integer, primary_key=True, index=True)
+    employee_id = Column(Integer, ForeignKey('employees.id'))
+    title = Column(String(255), nullable=False)
+    amount = Column(Float, nullable=False)
+    category = Column(String(100)) 
+    description = Column(Text)
+    receipt_file_path = Column(String(500))
+    status = Column(Enum(ExpenseStatus), default=ExpenseStatus.PENDING)
+    approved_by_id = Column(Integer, ForeignKey('employees.id'), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    employee = relationship("Employee", back_populates="expenses", foreign_keys=[employee_id])
+    approver = relationship("Employee", foreign_keys=[approved_by_id])
+
+# --- Project Management ---
+
+class Project(Base):
+    __tablename__ = 'projects'
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(255), nullable=False)
+    client_name = Column(String(100))
+    description = Column(Text)
+    start_date = Column(Date)
+    end_date = Column(Date)
+    status = Column(String(50), default='Active')
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    members = relationship("ProjectMember", back_populates="project")
+
+class ProjectMember(Base):
+    __tablename__ = 'project_members'
+    project_id = Column(Integer, ForeignKey('projects.id'), primary_key=True)
+    employee_id = Column(Integer, ForeignKey('employees.id'), primary_key=True)
+    role_in_project = Column(String(100)) 
+    joined_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    project = relationship("Project", back_populates="members")
+    employee = relationship("Employee", back_populates="project_memberships")
+
+# --- Other Modules ---
 
 class Attendance(Base):
     __tablename__ = 'attendance'
@@ -239,13 +313,11 @@ class Attendance(Base):
     date = Column(Date, default=func.current_date())
     check_in = Column(DateTime(timezone=True), default=func.now())
     check_out = Column(DateTime(timezone=True), nullable=True)
-    status = Column(String(50), default='Present') # Present, Absent, Half Day
-    work_location = Column(String(100)) # Office, Remote
+    status = Column(String(50), default='Present')
+    work_location = Column(String(100))
     remarks = Column(Text)
     
     employee = relationship("Employee", back_populates="attendance_records")
-
-# --- Performance Management ---
 
 class PerformanceReview(Base):
     __tablename__ = 'performance_reviews'
@@ -253,17 +325,15 @@ class PerformanceReview(Base):
     employee_id = Column(Integer, ForeignKey('employees.id'))
     reviewer_id = Column(Integer, ForeignKey('employees.id'))
     review_date = Column(DateTime(timezone=True), default=func.now())
-    cycle_name = Column(String(100)) # e.g. Q1 2024 Appraisal
-    rating = Column(Float) # 1-5
-    goals_met = Column(JSON) # List of goals and completion status
+    cycle_name = Column(String(100))
+    rating = Column(Float)
+    goals_met = Column(JSON)
     manager_comments = Column(Text)
     employee_comments = Column(Text)
-    status = Column(String(50), default='Draft') # Draft, Submitted, Completed
+    status = Column(String(50), default='Draft')
     
     employee = relationship("Employee", foreign_keys=[employee_id], back_populates="performance_reviews")
     reviewer = relationship("Employee", foreign_keys=[reviewer_id])
-
-# --- Announcements ---
 
 class Announcement(Base):
     __tablename__ = 'announcements'
@@ -280,8 +350,6 @@ class Announcement(Base):
     creator = relationship("User")
     target_department = relationship("Department")
 
-# --- Onboarding ---
-
 class OnboardingTask(Base):
     __tablename__ = 'onboarding_tasks'
     id = Column(Integer, primary_key=True, index=True)
@@ -293,8 +361,6 @@ class OnboardingTask(Base):
     due_date = Column(DateTime(timezone=True), nullable=True)
     
     employee = relationship("Employee", back_populates="onboarding_tasks")
-
-# --- Legacy Models ---
 
 class LeaveBalance(Base):
     __tablename__ = 'leave_balances'
