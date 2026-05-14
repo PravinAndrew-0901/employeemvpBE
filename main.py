@@ -1,17 +1,18 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.config import settings
-from api.routes import auth, roles, candidates, jobs, dashboard, follow_ups, reports, users, settings as settings_router, applications
+from api.routes import (
+    auth, roles, candidates, jobs, dashboard, 
+    follow_ups, reports, users, settings as settings_router, 
+    applications, employees, payroll, leaves, tickets
+)
 from db.database import engine, Base
 from fastapi.staticfiles import StaticFiles
 import os
 
-# Create tables if they don't exist, though typically handled by Alembic or seed script
-# Base.metadata.create_all(bind=engine)
-
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    description="HR Recruiter MVP API",
+    description="Corporate HRMS & Recruiter API",
     version="1.0.0"
 )
 
@@ -23,12 +24,13 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 # CORS setup
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # For MVP. In production, restrict this.
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# --- Routes Registration ---
 app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(roles.router, prefix="/api/roles", tags=["roles"])
 app.include_router(candidates.router, prefix="/api/candidates", tags=["candidates"])
@@ -40,6 +42,12 @@ app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(settings_router.router, prefix="/api", tags=["settings"])
 app.include_router(applications.router, prefix="/api", tags=["applications"])
 
+# New HRMS Modules
+app.include_router(employees.router, prefix="/api", tags=["employees"])
+app.include_router(payroll.router, prefix="/api", tags=["payroll"])
+app.include_router(leaves.router, prefix="/api", tags=["leaves"])
+app.include_router(tickets.router, prefix="/api", tags=["tickets"])
+
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to the HR Recruiter API"}
+    return {"message": "Welcome to the Corporate HRMS & Recruiter API"}
