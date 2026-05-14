@@ -155,7 +155,9 @@ class Candidate(Base):
     cv_file_path = Column(String(500))
     status = Column(Enum(CandidateStatus), default=CandidateStatus.NEW)
     assigned_recruiter_id = Column(Integer, ForeignKey('users.id', ondelete="SET NULL"), nullable=True)
+    is_duplicate = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     assigned_recruiter = relationship("User", foreign_keys=[assigned_recruiter_id], back_populates="assigned_candidates")
     applications = relationship("JobApplication", back_populates="candidate")
