@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Text, JSON, Enum, Float
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, DateTime, Text, JSON, Enum, Float, Date
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import func
 import enum
@@ -224,8 +224,77 @@ class Employee(Base):
     leave_balances = relationship("LeaveBalance", back_populates="employee")
     pay_slips = relationship("PaySlip", back_populates="employee")
     tickets = relationship("SupportTicket", back_populates="creator", foreign_keys='SupportTicket.created_by_id')
+    
+    # New Zoho-like additions
+    attendance_records = relationship("Attendance", back_populates="employee")
+    performance_reviews = relationship("PerformanceReview", back_populates="employee", foreign_keys='PerformanceReview.employee_id')
+    onboarding_tasks = relationship("OnboardingTask", back_populates="employee")
 
-# --- Attendance & Leave ---
+# --- Attendance & Time Tracking ---
+
+class Attendance(Base):
+    __tablename__ = 'attendance'
+    id = Column(Integer, primary_key=True, index=True)
+    employee_id = Column(Integer, ForeignKey('employees.id'))
+    date = Column(Date, default=func.current_date())
+    check_in = Column(DateTime(timezone=True), default=func.now())
+    check_out = Column(DateTime(timezone=True), nullable=True)
+    status = Column(String(50), default='Present') # Present, Absent, Half Day
+    work_location = Column(String(100)) # Office, Remote
+    remarks = Column(Text)
+    
+    employee = relationship("Employee", back_populates="attendance_records")
+
+# --- Performance Management ---
+
+class PerformanceReview(Base):
+    __tablename__ = 'performance_reviews'
+    id = Column(Integer, primary_key=True, index=True)
+    employee_id = Column(Integer, ForeignKey('employees.id'))
+    reviewer_id = Column(Integer, ForeignKey('employees.id'))
+    review_date = Column(DateTime(timezone=True), default=func.now())
+    cycle_name = Column(String(100)) # e.g. Q1 2024 Appraisal
+    rating = Column(Float) # 1-5
+    goals_met = Column(JSON) # List of goals and completion status
+    manager_comments = Column(Text)
+    employee_comments = Column(Text)
+    status = Column(String(50), default='Draft') # Draft, Submitted, Completed
+    
+    employee = relationship("Employee", foreign_keys=[employee_id], back_populates="performance_reviews")
+    reviewer = relationship("Employee", foreign_keys=[reviewer_id])
+
+# --- Announcements ---
+
+class Announcement(Base):
+    __tablename__ = 'announcements'
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(255), nullable=False)
+    content = Column(Text, nullable=False)
+    priority = Column(Enum(TicketPriority), default=TicketPriority.MEDIUM)
+    target_department_id = Column(Integer, ForeignKey('departments.id'), nullable=True)
+    created_by_id = Column(Integer, ForeignKey('users.id'))
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), default=func.now())
+    expires_at = Column(DateTime(timezone=True), nullable=True)
+    
+    creator = relationship("User")
+    target_department = relationship("Department")
+
+# --- Onboarding ---
+
+class OnboardingTask(Base):
+    __tablename__ = 'onboarding_tasks'
+    id = Column(Integer, primary_key=True, index=True)
+    employee_id = Column(Integer, ForeignKey('employees.id'))
+    task_name = Column(String(255), nullable=False)
+    description = Column(Text)
+    is_completed = Column(Boolean, default=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    due_date = Column(DateTime(timezone=True), nullable=True)
+    
+    employee = relationship("Employee", back_populates="onboarding_tasks")
+
+# --- Legacy Models ---
 
 class LeaveBalance(Base):
     __tablename__ = 'leave_balances'
@@ -252,8 +321,6 @@ class LeaveRequest(Base):
     employee = relationship("Employee", back_populates="leave_requests", foreign_keys=[employee_id])
     approver = relationship("Employee", foreign_keys=[approved_by_id])
 
-# --- Payroll ---
-
 class PaySlip(Base):
     __tablename__ = 'pay_slips'
     id = Column(Integer, primary_key=True, index=True)
@@ -268,8 +335,6 @@ class PaySlip(Base):
     generated_at = Column(DateTime(timezone=True), server_default=func.now())
     
     employee = relationship("Employee", back_populates="pay_slips")
-
-# --- Helpdesk / Tickets ---
 
 class SupportTicket(Base):
     __tablename__ = 'support_tickets'
@@ -297,8 +362,6 @@ class TicketComment(Base):
     
     ticket = relationship("SupportTicket", back_populates="comments")
     commenter = relationship("User")
-
-# --- Follow Ups ---
 
 class FollowUp(Base):
     __tablename__ = 'follow_ups'

@@ -4,7 +4,8 @@ from core.config import settings
 from api.routes import (
     auth, roles, candidates, jobs, dashboard, 
     follow_ups, reports, users, settings as settings_router, 
-    applications, employees, payroll, leaves, tickets
+    applications, employees, payroll, leaves, tickets,
+    attendance, announcements
 )
 from db.database import engine, Base
 from fastapi.staticfiles import StaticFiles
@@ -42,11 +43,13 @@ app.include_router(users.router, prefix="/api/users", tags=["users"])
 app.include_router(settings_router.router, prefix="/api", tags=["settings"])
 app.include_router(applications.router, prefix="/api", tags=["applications"])
 
-# New HRMS Modules
+# HRMS & Enterprise Modules
 app.include_router(employees.router, prefix="/api", tags=["employees"])
 app.include_router(payroll.router, prefix="/api", tags=["payroll"])
 app.include_router(leaves.router, prefix="/api", tags=["leaves"])
 app.include_router(tickets.router, prefix="/api", tags=["tickets"])
+app.include_router(attendance.router, prefix="/api", tags=["attendance"])
+app.include_router(announcements.router, prefix="/api", tags=["announcements"])
 
 @app.get("/")
 def read_root():
